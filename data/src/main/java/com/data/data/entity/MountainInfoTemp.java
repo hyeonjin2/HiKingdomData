@@ -24,5 +24,4 @@ public class MountainInfoTemp {
   Double alt;
 
   @Column(name = "mountain_info_address", nullable = false, length = 200)
-  String address;
-}
+  String address;}

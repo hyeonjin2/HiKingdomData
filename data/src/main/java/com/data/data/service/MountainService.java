@@ -1,7 +1,9 @@
 package com.data.data.service;
 
+import java.io.IOException;
+
 public interface MountainService {
-  void getMountainInfo();
+  void getMountainInfo() throws IOException;
 
   void getMountainPeak();
 

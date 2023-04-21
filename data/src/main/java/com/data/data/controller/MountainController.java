@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+
 @RestController
 @Slf4j
 @RequestMapping("/mountain")
@@ -18,7 +20,7 @@ public class MountainController {
   private final MountainService mountainService;
 
   @PostMapping("/info")
-  public ResponseEntity<?> getMountainInfo() {
+  public ResponseEntity<?> getMountainInfo() throws IOException {
 
     mountainService.getMountainInfo();
     return new ResponseEntity<>("100대 명산 리스트를 가져오는데 성공했습니다.", HttpStatus.CREATED);
