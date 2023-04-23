@@ -27,9 +27,7 @@ public class MountainInfo {
   String address;
   @Column(name = "mountain_info_alt", nullable = false)
   Double alt;
-  @Column(name = "mountain_info_total_duration", nullable = false)
-  String totalDuration;
-  @Column(name = "mountain_info_img_url",length = 512)
+  @Column(name = "mountain_info_img_url", length = 512)
   String imgUrl;
 
 }

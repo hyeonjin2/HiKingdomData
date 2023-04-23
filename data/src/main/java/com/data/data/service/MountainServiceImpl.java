@@ -1,6 +1,8 @@
 package com.data.data.service;
 
+import com.data.data.entity.MountainInfo;
 import com.data.data.entity.MountainInfoTemp;
+import com.data.data.repository.MountainInfoRepository;
 import com.data.data.repository.MountainInfoTempRepository;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -8,6 +10,7 @@ import com.google.gson.JsonParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -19,6 +22,7 @@ import java.util.Objects;
 @Slf4j
 @RequiredArgsConstructor
 public class MountainServiceImpl implements MountainService {
+  private final MountainInfoRepository mountainInfoRepository;
   private final MountainInfoTempRepository mountainInfoTempRepository;
   @Value("${value.serviceKey}")
   String key;
@@ -28,28 +32,60 @@ public class MountainServiceImpl implements MountainService {
   @Override
   public void getMountainInfo() {
     tempList = mountainInfoTempRepository.findAll();
-//    for (MountainInfoTemp infoTemp : tempList) {
-//      StringBuilder urlBuilder = new StringBuilder("https://apis.data.go.kr/B553662/sceneryInfoService/getSceneryInfoList?serviceKey=");
-//      urlBuilder.append(key).append("&searchWrd=").append(infoTemp.getName()).append("&numOfRows=1&pageNo=1&type=xml&srchPlaceTpeCd=SCENERY");
+    for (MountainInfoTemp infoTemp : tempList) {
+      String name = infoTemp.getName().trim();
+      if (infoTemp.getName().equals("남산(금오산)"))
+        name = "금오산";
+      ResponseEntity<String> response = callApi("http://api.forest.go.kr/openapi/service/trailInfoService/getforeststoryservice?ServiceKey=" + key + "&mntnNm=" + name + "&numOfRows=1&pageNo=1");
 
-    ResponseEntity<String> response = callApi("http://api.forest.go.kr/openapi/service/trailInfoService/getforeststoryservice?ServiceKey=" + key + "&mntnNm=" + "관악산" + "&numOfRows=1&pageNo=1");
+      HttpStatus code = response.getStatusCode();
 
-    JsonObject jsonObject = JsonParser.parseString(Objects.requireNonNull(response.getBody())).getAsJsonObject();
-    log.info("jsonObject is : {}", jsonObject);
+      MountainInfo mountain;
 
-    JsonElement body = jsonObject.get("response").getAsJsonObject().get("body").getAsJsonObject().get("items").getAsJsonObject().get("item");
-    log.info("body is : {}", body);
+      if (code == HttpStatus.OK) {
+        JsonObject jsonObject = JsonParser.parseString(Objects.requireNonNull(response.getBody())).getAsJsonObject();
+//        log.info("jsonObject is : {}", jsonObject);
 
-    String description = body.getAsJsonObject().get("mntninfodtlinfocont").toString().replace("<BR>", "\n");
-    log.info("description is : {}", description);
+        JsonElement items = jsonObject.get("response").getAsJsonObject().get("body").getAsJsonObject().get("items");
+//        log.info("items is : {}", items);
 
-    String imgUrl = body.getAsJsonObject().get("mntnattchimageseq").toString();
-    log.info("imgUrl is : {}", imgUrl);
+        if (items.toString().length() == 0 || items.toString().equals("\"\"")) {
+          log.error("mountain name that fail to get data is : {}", infoTemp.getName());
+          continue;
+        }
 
-    String height = body.getAsJsonObject().get("mntninfohght").toString();
-    log.info("height is : {}m", height);
+        JsonElement body = items.getAsJsonObject().get("item");
+//    log.info("body is : {}", body);
 
-//    }
+        String description = body.getAsJsonObject().get("mntninfodtlinfocont").toString().replace("<BR>", "\n").replace("</p>", "\n").replace("&lt;br /&gt;\r\n", "").replace("&lt;br /&gt;\r\n&lt;br /&gt;\r\n", "").replace("<p>", "\n").replace("\"", "");
+//    log.info("description is : {}", description);
+
+        String imgUrl = body.getAsJsonObject().get("mntnattchimageseq").toString().replace("\"", "");
+//    log.info("imgUrl is : {}", imgUrl);
+
+        String height = body.getAsJsonObject().get("mntninfohght").toString();
+//    log.info("height is : {}m", height);
+
+        mountain = MountainInfo.builder()
+                .name(infoTemp.getName())
+                .description(description)
+                .address(infoTemp.getAddress())
+                .alt(Double.parseDouble(height))
+                .imgUrl(imgUrl)
+                .build();
+
+      } else {
+        log.error("mountain name that fail to get data is : {}", infoTemp.getName());
+        mountain = MountainInfo.builder()
+                .name(infoTemp.getName())
+                .description("")
+                .address(infoTemp.getAddress())
+                .alt(0d)
+                .imgUrl("")
+                .build();
+      }
+      mountainInfoRepository.save(mountain);
+    }
   }
 
   @Override
